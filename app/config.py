@@ -34,7 +34,7 @@ def _int_env(name: str, default: int, minimum: int = 1) -> int:
         return default
 
 
-# Cap completion size (JSON job list). Tune via env if responses truncate.
-OPENAI_MAX_OUTPUT_TOKENS: int = _int_env("OPENAI_MAX_OUTPUT_TOKENS", 6144, 1024)
+# Cap completion size (JSON job list). Default high enough for 10 jobs + ~140-char why_match.
+OPENAI_MAX_OUTPUT_TOKENS: int = _int_env("OPENAI_MAX_OUTPUT_TOKENS", 10240, 1024)
 
 RESULTS_DIR.mkdir(parents=True, exist_ok=True)

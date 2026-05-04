@@ -53,6 +53,8 @@ match the user's preferences (provided in Markdown by the user message).
 How to search:
 - Use at most 4 web_search tool calls for the whole run (combine keywords in
   each query). Do not issue many small searches.
+- In those searches, cast a wide enough net to surface enough listings to fill
+  the job list (see Rules).
 - Check multiple sources when possible: LinkedIn Jobs, Indeed, Idealist,
   HigherEdJobs, university career pages, non-profit job boards.
 - Verify each posting page actually exists and looks active.
@@ -68,8 +70,11 @@ NOTHING else (no prose, no markdown fences):
 
 Rules:
 - Return at most {MAX_JOBS} of the strongest matches — never more than {MAX_JOBS}.
-  These are the only jobs you output; rank best first.
-- Keep "why_match" to one very short phrase (max ~80 characters) to save tokens.
+  **Aim to return {MAX_JOBS} jobs whenever at least {MAX_JOBS} acceptable listings
+  exist.** If you only find fewer strong matches, return all of those — but do not
+  stop early when more good matches are still available from your searches.
+  Rank best matches first.
+- Keep "why_match" to one short sentence (under ~140 characters).
 - Use null (not the string "N/A") for fields you cannot determine.
 - "url" must be the direct link to the posting.
 - "source" is the site/board the listing was found on.
