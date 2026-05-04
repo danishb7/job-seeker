@@ -1,20 +1,20 @@
 :root {
-  /* Pastel pink / blush — minimal, soft contrast */
-  --bg: #fcf5f8;
-  --surface: #fffafd;
-  --ink: #3a2d34;
-  --ink-soft: #6d5963;
-  --muted: #9a8492;
-  --line: #f0dce8;
-  --accent: #e8a0c4;
-  --accent-deep: #c76b9a;
-  --accent-glow: rgba(230, 160, 200, 0.28);
-  --blush: #fdeef4;
-  --petal: #f5c4d8;
-  --lavender: #eadcf2;
-  --peach: #ffe8f0;
-  --cream: #fff5f0;
-  --shadow: 0 4px 24px rgba(180, 90, 130, 0.07);
+  /* Warm paper + sage — minimal, soft contrast (no pink) */
+  --bg: #faf7f2;
+  --surface: #ffffff;
+  --ink: #2b2b2b;
+  --ink-soft: #5b5b5b;
+  --muted: #8a8a8a;
+  --line: #ece6dc;
+  --accent: #7ba890;
+  --accent-deep: #5e8a73;
+  --accent-glow: rgba(123, 168, 144, 0.22);
+  --blush: #eef4f0;
+  --petal: #9bc4a8;
+  --lavender: #c8dbe7;
+  --peach: #f0ebe3;
+  --cream: #f4d9a3;
+  --shadow: 0 4px 20px rgba(60, 50, 35, 0.06);
   --radius: 14px;
   --radius-sm: 10px;
   --radius-pill: 999px;
@@ -211,7 +211,7 @@ code {
   transition: transform 0.1s ease, box-shadow 0.15s ease;
 }
 
-.card:hover { transform: translateY(-1px); box-shadow: 0 10px 28px rgba(180, 100, 140, 0.1); }
+.card:hover { transform: translateY(-1px); box-shadow: 0 10px 28px rgba(60, 50, 35, 0.09); }
 
 .card-head { display: flex; justify-content: space-between; gap: 16px; align-items: flex-start; }
 
@@ -227,13 +227,13 @@ code {
   padding: 3px 10px;
   border-radius: var(--radius-pill);
   background: var(--peach);
-  color: #8b4a6e;
+  color: #6b5548;
 }
 
-.badge.location { background: var(--lavender); color: #5c4572; }
-.badge.work-mode { background: rgba(231, 160, 200, 0.35); color: #8b3d6b; }
-.badge.salary { background: var(--cream); color: #7a4d38; }
-.badge.nonprofit { background: linear-gradient(160deg, var(--petal), var(--accent)); color: white; }
+.badge.location { background: var(--lavender); color: #2f5a72; }
+.badge.work-mode { background: rgba(123, 168, 144, 0.22); color: var(--accent-deep); }
+.badge.salary { background: var(--cream); color: #6b4f1e; }
+.badge.nonprofit { background: linear-gradient(160deg, var(--accent), var(--accent-deep)); color: white; }
 
 .card .why { margin: 6px 0 12px; color: var(--ink-soft); font-size: 0.95rem; }
 
@@ -273,7 +273,7 @@ code {
   font-family: inherit;
   font-size: 0.95rem;
   line-height: 1.45;
-  background: #fff9fc;
+  background: #fdfbf7;
   color: var(--ink);
   resize: vertical;
   min-height: 72px;
@@ -329,7 +329,7 @@ code {
 .modal-backdrop {
   position: absolute;
   inset: 0;
-  background: rgba(90, 40, 70, 0.35);
+  background: rgba(45, 42, 38, 0.42);
   backdrop-filter: blur(2px);
 }
 
@@ -366,7 +366,7 @@ code {
   bottom: 28px;
   left: 50%;
   transform: translateX(-50%);
-  background: linear-gradient(160deg, var(--accent-deep), #a85584);
+  background: linear-gradient(160deg, var(--accent-deep), #4a6b56);
   color: white;
   padding: 10px 18px;
   border-radius: var(--radius-pill);
