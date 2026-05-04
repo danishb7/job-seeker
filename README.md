@@ -39,21 +39,34 @@ write in plain Markdown.
    The model is configurable, so you can swap to `gpt-5`, `gpt-5-mini`,
    `gpt-4o`, etc. without touching code.
 
-4. **Run the app** (recommended on Windows):
+4. **Run the app**
 
-   **Easiest:** double-click **`run.bat`** in this folder (Explorer sets the
-   working directory correctly).
+   **Windows — easiest:** double-click **`run.bat`** in this folder (Explorer
+   sets the working directory correctly).
 
-   **From a terminal** (any of these work the same way):
+   **macOS — easiest:** double-click **`run.command`** in Finder.
+
+   - **First time only:** open Terminal in this folder and run  
+     `chmod +x run.command`  
+     so Finder is allowed to execute it.
+   - If macOS says the file cannot be verified: **right-click** `run.command` →
+     **Open** → **Open** (you only need this once).
+   - A Terminal window opens and prints the app URL. Leave it open while you
+     use the browser; press **Ctrl+C** in that window to stop the server.
+   - If you use a virtual environment, `run.command` prefers  
+     `.venv/bin/python3` automatically when that exists.
+
+   **From a terminal** (Windows, macOS, or Linux):
 
    ```
    python run_server.py
    ```
 
-   Or in PowerShell: **`.\run.bat`** (note the `.\` — PowerShell does not run
-   `run.bat` without it). **`.\run.ps1`** only works if scripts are allowed; if
-   you see *running scripts is disabled*, either use `python run_server.py` /
-   `.\run.bat` instead, or run once with:
+   On macOS/Linux you may need `python3` instead of `python`.
+
+   **Windows only:** in PowerShell, **`.\run.bat`** (note the `.\`).  
+   **`.\run.ps1`** only works if scripts are allowed; if you see *running scripts
+   is disabled*, use `python run_server.py` or `.\run.bat`, or run once with:
 
    ```
    powershell -ExecutionPolicy Bypass -File .\run.ps1
@@ -124,6 +137,8 @@ Missing data is left as an empty cell so spreadsheets stay clean.
 
 ```
 job-seeker/
+  run.command          # macOS: double-click to start (after chmod +x)
+  run.bat              # Windows: double-click to start
   app/
     main.py
     agent.py
