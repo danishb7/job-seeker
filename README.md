@@ -34,10 +34,14 @@ write in plain Markdown.
    ```
    OPENAI_API_KEY=sk-...
    OPENAI_MODEL=gpt-5.5
+   OPENAI_MODEL_OPTIONS=gpt-5.5,gpt-5.5-mini,gpt-4o
    ```
 
-   The model is configurable, so you can swap to `gpt-5`, `gpt-5-mini`,
-   `gpt-4o`, etc. without touching code.
+   `OPENAI_MODEL` is the server default when a search sends no override; it **must**
+   be one of the three IDs listed in `OPENAI_MODEL_OPTIONS`. The in-app **Model**
+   dropdown uses the same list (labels optional via `OPENAI_MODEL_LABELS`) and your
+   choice is stored per browser tab (`sessionStorage`). Swap model IDs only if all
+   three support the Responses API + built-in `web_search` on your account.
 
 4. **Run the app**
 
@@ -89,8 +93,11 @@ write in plain Markdown.
 
 ## Using the app
 
-- **Find me jobs** &mdash; Runs the agent. Results appear as cards and a
-  CSV is auto-saved.
+- **Model** &mdash; Pick one of three whitelisted OpenAI models (same API key).
+  The footer still shows your `.env` default; the status line after each run shows
+  the model that actually searched.
+- **Find me jobs** &mdash; Runs the agent (sends `{ "model": "..." }` in the POST
+  body). Results appear as cards and a CSV is auto-saved.
 - **Job Requirements** &mdash; Opens a popup with your current
   preferences. Edit them in-browser. Choose:
   - **Save** &mdash; persist the file and close.
@@ -110,9 +117,33 @@ write in plain Markdown.
 
 ## Editing your preferences
 
-Open `job_requirements.md` (or use the **Job Requirements** button). Each
-section is sent verbatim to the agent as Markdown. You can freely add,
-remove, or rename sections; the agent will treat them as guidance.
+Open `job_requirements.md` (or use the **Job Requirements** button). The file is
+stored **verbatim**. When you search, the app sends a slightly trimmed copy to the
+agent (drops the `# Job Search Preferences` title, the introductory `>` quote
+block, and a few obvious empty placeholders) so browsing stays on-token while the
+editor UI sees the full template.
+
+You can freely add, remove, or rename sections; the agent will treat them as
+guidance.
+
+## Token / cost tuning
+
+- **Two `web_search` calls** per run by default (`OPENAI_MAX_WEB_SEARCH_CALLS`),
+  aligned with the system prompt and `max_tool_calls` on the Responses API.
+- **Smaller output cap** (`OPENAI_MAX_OUTPUT_TOKENS`, default `4096`) so the model
+  does not over-allocate completion budget.
+- **Shorter system prompt** + **structured JSON** (`text.format` / json_schema) when
+  the API accepts it; automatic one-time retry without schema if the platform
+  rejects the format.
+- **Tighter `why_match`** (`WHY_MATCH_MAX_CHARS`, default `100`).
+- **`reasoning.effort`** for gpt-5 / o-series when you set `OPENAI_REASONING_EFFORT`
+  (e.g. `minimal`).
+- Preferences **stripping** for the agent-only payload (see above).
+
+## Contributing
+
+Use topic branches for larger changes — for example, token optimizations were developed
+on `feature-optimize-tokens` — and open pull requests targeting `main`.
 
 ## CSV output
 
@@ -160,10 +191,11 @@ job-seeker/
 
 ## Notes
 
-- Search uses OpenAI's `web_search` tool with `search_context_size: high`
-  and a user-location bias toward Fort Mill, SC.
-- The agent is asked to return strict JSON; the response is parsed
-  defensively (handles stray code fences) so the UI and CSV always get
-  a clean list.
+- Search uses OpenAI's `web_search` tool with `search_context_size` defaulting to
+  `low` (configurable via `OPENAI_SEARCH_CONTEXT_SIZE`) plus a Fort Mill, SC geo
+  hint.
+- The agent targets strict JSON (`json_schema` on the Responses API when
+  supported), with defensive parsing fallback if outputs include stray prose or
+  code fences.
 - Preferences are written atomically (temp file + rename) so a save
   never corrupts the file mid-write.

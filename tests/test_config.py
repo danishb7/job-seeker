@@ -3,6 +3,8 @@ from __future__ import annotations
 
 import importlib
 
+import pytest
+
 import app.config as config_module
 
 
@@ -64,3 +66,23 @@ def test_search_context_size_default_low(monkeypatch) -> None:
     monkeypatch.delenv("OPENAI_SEARCH_CONTEXT_SIZE", raising=False)
     reloaded = importlib.reload(config_module)
     assert reloaded.OPENAI_SEARCH_CONTEXT_SIZE == "low"
+
+
+def test_resolve_model_defaults_when_empty(monkeypatch) -> None:
+    monkeypatch.setattr(config_module, "OPENAI_MODEL_OPTIONS", ("a", "b", "c"))
+    monkeypatch.setattr(config_module, "OPENAI_MODEL", "b")
+    assert config_module.resolve_model(None) == "b"
+    assert config_module.resolve_model("") == "b"
+
+
+def test_resolve_model_accepts_override(monkeypatch) -> None:
+    monkeypatch.setattr(config_module, "OPENAI_MODEL_OPTIONS", ("x1", "x2", "x3"))
+    monkeypatch.setattr(config_module, "OPENAI_MODEL", "x2")
+    assert config_module.resolve_model(" x3 ") == "x3"
+
+
+def test_resolve_model_unknown_raises(monkeypatch) -> None:
+    monkeypatch.setattr(config_module, "OPENAI_MODEL_OPTIONS", ("a", "b", "c"))
+    monkeypatch.setattr(config_module, "OPENAI_MODEL", "a")
+    with pytest.raises(ValueError, match="Unsupported model"):
+        config_module.resolve_model("z")

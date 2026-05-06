@@ -1,84 +1,47 @@
-"""Tests for app.requirements_loader."""
+"""Tests for preferences read / agent-only stripping."""
 from __future__ import annotations
 
-import os as _os
 from pathlib import Path
 
-import pytest
-
-from app.requirements_loader import read_preferences, write_preferences
+from app.requirements_loader import read_for_agent, read_preferences
 
 
-def test_read_preferences_missing_returns_empty(tmp_path: Path) -> None:
-    assert read_preferences(tmp_path / "nope.md") == ""
+def test_read_preferences_round_trip_keeps_intro(tmp_path: Path, monkeypatch) -> None:
+    md = "# Job Search Preferences\n\n> intro line\n\n## Location\n\nSC\n"
+    p = tmp_path / "job_requirements.md"
+    p.write_text(md, encoding="utf-8")
+    monkeypatch.setattr("app.requirements_loader.PREFERENCES_FILE", p)
+    assert "> intro line" in read_preferences()
 
 
-def test_read_preferences_returns_content(tmp_path: Path) -> None:
-    p = tmp_path / "prefs.md"
-    p.write_text("hello world", encoding="utf-8")
-    assert read_preferences(p) == "hello world"
+def test_read_for_agent_removes_heading_and_quote(tmp_path: Path, monkeypatch) -> None:
+    md = (
+        "# Job Search Preferences\r\n\r\n"
+        "> Save me in the modal.\r\n"
+        "> second quote line\r\n\r\n"
+        "## Job Titles\r\n\r\n"
+        "- Coach\r\n"
+    )
+    p = tmp_path / "job_requirements.md"
+    p.write_text(md, encoding="utf-8")
+    monkeypatch.setattr("app.requirements_loader.PREFERENCES_FILE", p)
+    out = read_for_agent()
+    assert "# Job Search" not in out
+    assert "> Save" not in out
+    assert "## Job Titles" in out
+    assert "- Coach" in out
 
 
-def test_write_preferences_creates_file_and_appends_newline(tmp_path: Path) -> None:
-    p = tmp_path / "prefs.md"
-    write_preferences("content", p)
-    assert p.read_text(encoding="utf-8") == "content\n"
-
-
-def test_write_preferences_preserves_existing_trailing_newline(tmp_path: Path) -> None:
-    p = tmp_path / "prefs.md"
-    write_preferences("content\n", p)
-    assert p.read_text(encoding="utf-8") == "content\n"
-
-
-def test_write_preferences_rejects_blank(tmp_path: Path) -> None:
-    with pytest.raises(ValueError):
-        write_preferences("   \n\t", tmp_path / "prefs.md")
-
-
-def test_write_preferences_rejects_empty_string(tmp_path: Path) -> None:
-    with pytest.raises(ValueError):
-        write_preferences("", tmp_path / "prefs.md")
-
-
-def test_write_preferences_creates_parent_dir(tmp_path: Path) -> None:
-    nested = tmp_path / "deep" / "nested" / "prefs.md"
-    write_preferences("x", nested)
-    assert nested.exists()
-
-
-def test_write_preferences_cleans_up_temp_on_replace_failure(
-    tmp_path: Path, monkeypatch
-) -> None:
-    """If os.replace blows up, the temp file should not be left behind."""
-    p = tmp_path / "prefs.md"
-
-    def fail_replace(*_args, **_kwargs):
-        raise OSError("disk full")
-
-    monkeypatch.setattr(_os, "replace", fail_replace)
-    with pytest.raises(OSError, match="disk full"):
-        write_preferences("content", p)
-
-    leftover = list(tmp_path.glob(".job_requirements_*.md.tmp"))
-    assert leftover == []
-    assert not p.exists()
-
-
-def test_write_preferences_replace_failure_when_temp_already_gone(
-    tmp_path: Path, monkeypatch
-) -> None:
-    """Cleanup should swallow OSError if the temp file was already removed."""
-    p = tmp_path / "prefs.md"
-
-    def fail_replace(src, _dst):
-        # Pre-remove the temp file so the cleanup os.unlink also fails
-        try:
-            _os.unlink(src)
-        except OSError:
-            pass
-        raise OSError("disk full")
-
-    monkeypatch.setattr(_os, "replace", fail_replace)
-    with pytest.raises(OSError, match="disk full"):
-        write_preferences("content", p)
+def test_read_for_agent_drops_empty_minimum_bullet(tmp_path: Path, monkeypatch) -> None:
+    md = (
+        "## Salary\n\n"
+        "- Minimum: (leave blank if no requirement)\n"
+        "- Preferred:\n\n"
+        "## End\n\nok\n"
+    )
+    p = tmp_path / "job_requirements.md"
+    p.write_text(md, encoding="utf-8")
+    monkeypatch.setattr("app.requirements_loader.PREFERENCES_FILE", p)
+    out = read_for_agent()
+    assert "- Minimum:" not in out
+    assert "ok" in out
