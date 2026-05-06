@@ -41,7 +41,10 @@
     return map[n] || null;
   };
 
+  const MODEL_SESSION_KEY = "jobSeeker_model";
+
   const els = {
+    modelPick: document.getElementById("model-pick"),
     btnSearch: document.getElementById("btn-search"),
     btnPrefs: document.getElementById("btn-prefs"),
     btnReload: document.getElementById("btn-reload"),
@@ -365,9 +368,19 @@
     els.loading.classList.remove("hidden");
     showStatus("");
     els.btnSearch.disabled = true;
+    if (els.modelPick) els.modelPick.disabled = true;
 
     try {
-      const res = await fetch("/api/search", { method: "POST" });
+      const payload =
+        els.modelPick && els.modelPick.value
+          ? { model: els.modelPick.value }
+          : {};
+
+      const res = await fetch("/api/search", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
       if (!res.ok) {
         const err = await res.json().catch(() => ({ detail: res.statusText }));
         throw new Error(err.detail || "Search failed");
@@ -393,6 +406,7 @@
     } finally {
       els.loading.classList.add("hidden");
       els.btnSearch.disabled = false;
+      if (els.modelPick) els.modelPick.disabled = false;
     }
   };
 
@@ -596,6 +610,18 @@
       }
     }
   });
+
+  /* -------- Model selector (matches server whitelist; persists per tab) -------- */
+
+  if (els.modelPick) {
+    const savedModel = sessionStorage.getItem(MODEL_SESSION_KEY);
+    if (savedModel && [...els.modelPick.options].some((o) => o.value === savedModel)) {
+      els.modelPick.value = savedModel;
+    }
+    els.modelPick.addEventListener("change", () => {
+      sessionStorage.setItem(MODEL_SESSION_KEY, els.modelPick.value);
+    });
+  }
 
   refreshHistoryList({ silent: true });
 })();

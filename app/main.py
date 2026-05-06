@@ -1,6 +1,7 @@
 """FastAPI entrypoint for the Job Seeker agent."""
 from __future__ import annotations
 
+import json
 import time
 from pathlib import Path
 
@@ -16,6 +17,8 @@ from .config import (
     RESULTS_DIR,
     STATIC_DIR,
     TEMPLATES_DIR,
+    model_selector_rows,
+    resolve_model,
 )
 from .schemas import PreferencesPayload, SearchResponse
 
@@ -38,6 +41,7 @@ def index(request: Request) -> HTMLResponse:
         {
             "model": OPENAI_MODEL,
             "preferences_path": str(PREFERENCES_FILE.name),
+            "model_options": model_selector_rows(),
         },
     )
 
@@ -62,17 +66,42 @@ def reload_preferences() -> dict[str, str]:
 
 
 @app.post("/api/search", response_model=SearchResponse)
-def run_search() -> SearchResponse:
-    prefs = requirements_loader.read_preferences()
-    if not prefs.strip():
+async def run_search(request: Request) -> SearchResponse:
+    prefs_raw = requirements_loader.read_preferences()
+    if not prefs_raw.strip():
         raise HTTPException(
             status_code=400,
             detail="job_requirements.md is empty. Add your preferences first.",
         )
 
+    model_override: str | None = None
+    raw_body = await request.body()
+    if raw_body.strip():
+        try:
+            data = json.loads(raw_body.decode("utf-8"))
+        except json.JSONDecodeError as exc:
+            raise HTTPException(
+                status_code=400, detail="Invalid JSON body."
+            ) from exc
+        if not isinstance(data, dict):
+            raise HTTPException(
+                status_code=400, detail="JSON body must be an object."
+            )
+        m = data.get("model")
+        if m is not None and not isinstance(m, str):
+            raise HTTPException(status_code=400, detail="model must be a string.")
+        model_override = str(m) if isinstance(m, str) else None
+
+    try:
+        resolved_model = resolve_model(model_override)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+    prefs_for_agent = requirements_loader.read_for_agent()
+
     started = time.perf_counter()
     try:
-        jobs = agent.search_jobs(prefs)
+        jobs = agent.search_jobs(prefs_for_agent, model=resolved_model)
     except RuntimeError as exc:
         raise HTTPException(status_code=500, detail=str(exc)) from exc
     except Exception as exc:
@@ -86,7 +115,7 @@ def run_search() -> SearchResponse:
     return SearchResponse(
         jobs=jobs,
         csv_filename=csv_path.name if csv_path else None,
-        model=OPENAI_MODEL,
+        model=resolved_model,
         elapsed_seconds=round(elapsed, 2),
     )
 

@@ -7,6 +7,7 @@ import pytest
 from fastapi.testclient import TestClient
 
 from app import main as main_module
+from app.config import OPENAI_MODEL_OPTIONS
 from app.main import app
 
 
@@ -87,7 +88,7 @@ def test_reload_preferences(client: TestClient, monkeypatch) -> None:
 
 def test_search_with_empty_prefs_returns_400(client: TestClient, monkeypatch) -> None:
     monkeypatch.setattr(main_module.requirements_loader, "read_preferences", lambda: "")
-    r = client.post("/api/search")
+    r = client.post("/api/search", json={})
     assert r.status_code == 400
     assert "empty" in r.json()["detail"].lower()
 
@@ -98,11 +99,18 @@ def test_search_success_writes_csv(
     monkeypatch.setattr(
         main_module.requirements_loader, "read_preferences", lambda: "must be remote"
     )
+    monkeypatch.setattr(
+        main_module.requirements_loader, "read_for_agent", lambda: "must be remote"
+    )
 
     fake_jobs = [
         {"title": "SWE", "company": "X", "work_mode": "Remote", "url": "https://e.com"}
     ]
-    monkeypatch.setattr(main_module.agent, "search_jobs", lambda _prefs: fake_jobs)
+    monkeypatch.setattr(
+        main_module.agent,
+        "search_jobs",
+        lambda prefs, model=None: fake_jobs,
+    )
 
     captured: dict[str, object] = {}
 
@@ -114,7 +122,7 @@ def test_search_success_writes_csv(
 
     monkeypatch.setattr(main_module.csv_writer, "write_csv", fake_write_csv)
 
-    r = client.post("/api/search")
+    r = client.post("/api/search", json={})
     assert r.status_code == 200
     body = r.json()
     assert len(body["jobs"]) == 1
@@ -125,11 +133,67 @@ def test_search_success_writes_csv(
     assert captured["jobs"] == fake_jobs
 
 
+def test_search_model_override_round_trips(client: TestClient, monkeypatch) -> None:
+    monkeypatch.setattr(
+        main_module.requirements_loader, "read_preferences", lambda: "x"
+    )
+    monkeypatch.setattr(
+        main_module.requirements_loader, "read_for_agent", lambda: "trimmed-body"
+    )
+    captured: dict[str, object] = {}
+
+    def capture(prefs: str, model: str | None = None):
+        captured["prefs"] = prefs
+        captured["model"] = model
+        return []
+
+    monkeypatch.setattr(main_module.agent, "search_jobs", capture)
+
+    alt = OPENAI_MODEL_OPTIONS[1]
+    r = client.post("/api/search", json={"model": alt})
+    assert r.status_code == 200
+    assert r.json()["model"] == alt
+    assert captured == {"prefs": "trimmed-body", "model": alt}
+
+
+def test_search_invalid_model_returns_400(client: TestClient, monkeypatch) -> None:
+    monkeypatch.setattr(
+        main_module.requirements_loader, "read_preferences", lambda: "x"
+    )
+    r = client.post("/api/search", json={"model": "not-a-whitelisted-model-id"})
+    assert r.status_code == 400
+
+
+def test_search_invalid_json_body_returns_400(client: TestClient, monkeypatch) -> None:
+    monkeypatch.setattr(
+        main_module.requirements_loader, "read_preferences", lambda: "x"
+    )
+    r = client.post(
+        "/api/search",
+        content=b"{broken",
+        headers={"Content-Type": "application/json"},
+    )
+    assert r.status_code == 400
+
+
+def test_search_non_object_json_returns_400(client: TestClient, monkeypatch) -> None:
+    monkeypatch.setattr(
+        main_module.requirements_loader, "read_preferences", lambda: "x"
+    )
+    r = client.post("/api/search", json=["unexpected"])
+    assert r.status_code == 400
+
+
 def test_search_no_jobs_returns_no_csv(client: TestClient, monkeypatch) -> None:
     monkeypatch.setattr(
         main_module.requirements_loader, "read_preferences", lambda: "x"
     )
-    monkeypatch.setattr(main_module.agent, "search_jobs", lambda _prefs: [])
+    monkeypatch.setattr(main_module.requirements_loader, "read_for_agent", lambda: "x")
+    monkeypatch.setattr(
+        main_module.agent,
+        "search_jobs",
+        lambda prefs, model=None: [],
+    )
 
     called = {"write": False}
 
@@ -139,7 +203,7 @@ def test_search_no_jobs_returns_no_csv(client: TestClient, monkeypatch) -> None:
 
     monkeypatch.setattr(main_module.csv_writer, "write_csv", should_not_be_called)
 
-    r = client.post("/api/search")
+    r = client.post("/api/search", json={})
     assert r.status_code == 200
     assert r.json()["csv_filename"] is None
     assert called["write"] is False
@@ -149,12 +213,13 @@ def test_search_runtime_error_becomes_500(client: TestClient, monkeypatch) -> No
     monkeypatch.setattr(
         main_module.requirements_loader, "read_preferences", lambda: "x"
     )
+    monkeypatch.setattr(main_module.requirements_loader, "read_for_agent", lambda: "x")
 
-    def boom(_prefs):
+    def boom(*_args: object, **_kwargs: object):
         raise RuntimeError("openai exploded")
 
     monkeypatch.setattr(main_module.agent, "search_jobs", boom)
-    r = client.post("/api/search")
+    r = client.post("/api/search", json={})
     assert r.status_code == 500
     assert "openai exploded" in r.json()["detail"]
 
@@ -163,12 +228,13 @@ def test_search_unknown_exception_becomes_502(client: TestClient, monkeypatch) -
     monkeypatch.setattr(
         main_module.requirements_loader, "read_preferences", lambda: "x"
     )
+    monkeypatch.setattr(main_module.requirements_loader, "read_for_agent", lambda: "x")
 
-    def boom(_prefs):
+    def boom(*_args: object, **_kwargs: object):
         raise ValueError("totally unexpected")
 
     monkeypatch.setattr(main_module.agent, "search_jobs", boom)
-    r = client.post("/api/search")
+    r = client.post("/api/search", json={})
     assert r.status_code == 502
     assert "totally unexpected" in r.json()["detail"]
 

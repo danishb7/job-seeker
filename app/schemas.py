@@ -26,6 +26,12 @@ class SearchResponse(BaseModel):
     elapsed_seconds: float = 0.0
 
 
+class SearchRequest(BaseModel):
+    """Optional body for POST /api/search — same key as OPENAI; pick a whitelisted model."""
+
+    model: Optional[str] = None
+
+
 class PreferencesPayload(BaseModel):
     content: str
 

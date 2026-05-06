@@ -21,6 +21,19 @@
     </div>
 
     <nav class="toolbar" aria-label="Primary actions">
+      <div class="toolbar-model" title="Stored in session; uses your OPENAI_API_KEY">
+        <label for="model-pick" class="toolbar-model-label">
+          <span class="toolbar-model-dot" aria-hidden="true"></span>
+          Model
+        </label>
+        <div class="toolbar-select-wrap">
+          <select id="model-pick" class="toolbar-select" name="model" aria-label="OpenAI model for this search">
+            {% for model_id, model_label in model_options %}
+            <option value="{{ model_id }}">{{ model_label }} ({{ model_id }})</option>
+            {% endfor %}
+          </select>
+        </div>
+      </div>
       <button id="btn-search" class="btn btn-primary" type="button">
         <span class="btn-label">Find me jobs</span>
       </button>

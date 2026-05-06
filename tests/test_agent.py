@@ -10,11 +10,13 @@ from openai import APIStatusError
 from app import agent
 from app.agent import (
     MAX_JOBS,
+    SYSTEM_PROMPT,
     _extract_json,
     _normalise_jobs,
     _retry_delay_after_429,
     search_jobs,
 )
+from app.config import OPENAI_MAX_WEB_SEARCH_CALLS
 
 
 # ---------- _extract_json ----------
@@ -95,6 +97,18 @@ def test_normalise_preserves_nonprofit_flag() -> None:
     assert out[0]["is_nonprofit_or_h1b_cap_exempt"] is True
 
 
+def test_normalise_truncates_why_match(monkeypatch) -> None:
+    monkeypatch.setattr(agent, "WHY_MATCH_MAX_CHARS", 5)
+    payload = {"jobs": [{"why_match": "abcdefghi"}]}
+    out = _normalise_jobs(payload)
+    assert out[0]["why_match"] == "abcde"
+
+
+def test_system_prompt_mentions_web_search_cap() -> None:
+    needle = str(OPENAI_MAX_WEB_SEARCH_CALLS)
+    assert needle in SYSTEM_PROMPT
+
+
 # ---------- _retry_delay_after_429 ----------
 
 
@@ -153,6 +167,8 @@ def test_search_jobs_success(monkeypatch) -> None:
     fake_client.responses.create.assert_called_once()
     call_kwargs = fake_client.responses.create.call_args.kwargs
     assert call_kwargs["model"] == "gpt-test"
+    assert call_kwargs["max_tool_calls"] == OPENAI_MAX_WEB_SEARCH_CALLS
+    assert "verbosity" in call_kwargs.get("text", {})
 
 
 def test_search_jobs_uses_default_model(monkeypatch) -> None:
